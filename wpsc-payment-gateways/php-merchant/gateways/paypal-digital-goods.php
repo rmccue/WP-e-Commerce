@@ -66,8 +66,6 @@ class PHP_Merchant_Paypal_Digital_Goods extends PHP_Merchant_Paypal_Express_Chec
 		if( empty( $args['element_id'] ) )
 			$args['element_id'] = 'paypal-submit';
 
-		//$dg_script  = '<a href="' . $args['href'] . '" id="' . $args['element_id'] . '"><img src="https://www.paypal.com/en_US/i/btn/btn_dg_pay_w_paypal.gif" border="0" /></a>';
-
 		$dg_script  = '<script src ="https://www.paypalobjects.com/js/external/dg.js" type="text/javascript"></script>'
 					. '<script>'
 					. 'var dg = new PAYPAL.apps.DGFlow({'
