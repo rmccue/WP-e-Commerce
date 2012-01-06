@@ -40,16 +40,16 @@ class WPSC_Payment_Gateway_Paypal_Digital_Goods extends WPSC_Payment_Gateway_Pay
 	 * DGFlow object if the "paypal-digital-goods" payment gateway radio button is checked. 
 	 */
 	public function add_iframe_script() {
-		?>
-		<?php $this->remove_iframe_script(); ?>
+		$this->remove_iframe_script(); ?>
 		<script src ="https://www.paypalobjects.com/js/external/dg.js" type="text/javascript"></script>
 		<script>
 		jQuery(document).ready(function($){
 			$('form.wpsc_checkout_forms input[name="submit"]').click(function(){
-				if($('input[name="custom_gateway"]:checked').val() == "paypal-digital-goods" ) {
+				if($('input[name="custom_gateway"]:checked').val() === undefined || $('input[name="custom_gateway"]:checked').val() == "paypal-digital-goods" ) {
 					var dg = new PAYPAL.apps.DGFlow({trigger:'submit-purchase'});
 					dg.startFlow();
 				}
+				return false;
 			});
 		});
 		</script>
@@ -74,7 +74,7 @@ class WPSC_Payment_Gateway_Paypal_Digital_Goods extends WPSC_Payment_Gateway_Pay
 			),
 			home_url( 'index.php' )
 		);
-		return apply_filters( 'wpsc_paypal_express_checkout_return_url', $location );
+		return apply_filters( 'wpsc_paypal_digital_goods_return_url', $location );
 	}
 
 	protected function get_notify_url() {
@@ -124,7 +124,9 @@ class WPSC_Payment_Gateway_Paypal_Digital_Goods extends WPSC_Payment_Gateway_Pay
 	}
 
 	public function callback_process_confirmed_payment() {
+
 		$args = array_map( 'urldecode', $_GET );
+
 		extract( $args, EXTR_SKIP );
 		if ( ! isset( $sessionid ) || ! isset( $token ) || ! isset( $PayerID ) )
 			return;
@@ -171,6 +173,8 @@ class WPSC_Payment_Gateway_Paypal_Digital_Goods extends WPSC_Payment_Gateway_Pay
 		} else {
 			$location = add_query_arg( array( 'payment_gateway_callback' => 'display_generic_error' ), $location );
 		}
+
+		$location = apply_filters( 'wpsc_paypal_digital_goods_confirmed_payment_url', $location );
 
 		wp_redirect( $location );
 		exit;
@@ -255,7 +259,7 @@ class WPSC_Payment_Gateway_Paypal_Digital_Goods extends WPSC_Payment_Gateway_Pay
 	/**
 	 * Process a purchase. 
 	 */
-	public function process() {
+	public function process( $args = array() ) {
 		$total = $this->convert( $this->purchase_log->get( 'totalprice' ) );
 		$options = array(
 			'return_url' => $this->get_return_url(),
@@ -271,7 +275,6 @@ class WPSC_Payment_Gateway_Paypal_Digital_Goods extends WPSC_Payment_Gateway_Pay
 
 		if ( $response->is_successful() ) {
 			$url = ( $this->setting->get( 'sandbox_mode' ) ? self::SANDBOX_URL : self::LIVE_URL ) . $response->get( 'token' );
-			wp_redirect( $url );
 		} else {
 			$_SESSION['paypal_express_checkout_errors'] = serialize( $response->get_errors() );
 			$url = add_query_arg( array(
@@ -279,7 +282,12 @@ class WPSC_Payment_Gateway_Paypal_Digital_Goods extends WPSC_Payment_Gateway_Pay
 				'payment_gateway_callback' => 'display_paypal_error',
 			), $this->get_return_url() );
 		}
-		wp_redirect( $url );
-		exit;
+
+		if( ! isset( $args['return_only'] ) || $args['return_only'] !== true ) {
+			wp_redirect( $url );
+			exit;
+		}
+
+		return $url;
 	}
 }
