@@ -490,8 +490,6 @@ function wpsc_filter_request( $q ) {
 		return $q;
 
 	$components = explode( '/', $q['wpsc-product'] );
-	if ( count( $components ) == 1 )
-		return $q;
 	$end_node = array_pop( $components );
 	$parent_node = array_pop( $components );
 
@@ -502,7 +500,8 @@ function wpsc_filter_request( $q ) {
 
 	if ( ! empty( $posts ) ) {
 		$q['wpsc-product'] = $q['name'] = $end_node;
-		$q['wpsc_product_category'] = $parent_node;
+		if ( !empty( $parent_node ) )
+			$q['wpsc_product_category'] = $parent_node;
 	} else {
 		$q['wpsc_product_category'] = $end_node;
 		unset( $q['name'] );
@@ -1229,8 +1228,11 @@ function wpsc_product_link( $permalink, $post, $leavename ) {
 			}
 		}
 
-		if(isset($category_slug) && empty($category_slug)) $category_slug = 'product';
-
+		if( isset( $category_slug ) && empty( $category_slug ) ) 
+			$category_slug = 'product';
+		
+		$category_slug = apply_filters( 'wpsc_product_permalink_cat_slug', $category_slug, $post_id );
+		
 		$rewritereplace = array(
 			$category_slug,
 			$post_name

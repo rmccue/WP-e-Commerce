@@ -20,11 +20,14 @@ div#wpsc_product_variation_forms table#wpsc_product_list tbody tr td.stock{
 
 div#wpsc_product_variation_forms table#wpsc_product_list tbody tr td.price{
 	width: 125px;
-	padding-top:10px;
 }
 
 div#wpsc_product_variation_forms table#wpsc_product_list tbody tr td.post-title{
 	width: 115px;
+}
+
+.wpsc_ie_stock[disabled] {
+	background-color:#f6f6f6;
 }
 
 div#wpsc_add_variant_desc,
