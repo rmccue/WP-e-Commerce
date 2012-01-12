@@ -7,7 +7,7 @@ class WPSC_Payment_Gateway_Paypal_Digital_Goods extends WPSC_Payment_Gateway_Pay
 	const SANDBOX_URL = 'https://www.sandbox.paypal.com/incontext?token=';
 	const LIVE_URL = 'https://www.paypal.com/incontext?token=';
 
-	private $gateway;
+	public $gateway;
 
 	public function __construct() {
 
