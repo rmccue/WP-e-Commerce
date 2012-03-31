@@ -19,30 +19,33 @@ add_action('init', 'wpsc_feed_publisher');
 function wpsc_generate_product_feed() {
 
 	global $wpdb, $wp_query, $post;
-	
-    set_time_limit(0);
 
+    set_time_limit(0);
+	
+	// Don't build up a huge posts cache for the whole store - http://code.google.com/p/wp-e-commerce/issues/detail?id=885
+	// WP 3.3+ only
+	if ( function_exists ( 'wp_suspend_cache_addition' ) ) {
+		wp_suspend_cache_addition(true);
+	}
+	
     $chunk_size = apply_filters ( 'wpsc_productfeed_chunk_size', 50 );
 
-	// Don't cache feed under WP Super-Cache
-	define('DONOTCACHEPAGE',TRUE);
-
-    // Don't build up a huge posts cache for the whole store - http://code.google.com/p/wp-e-commerce/issues/detail?id=885
-    // WP 3.3+ only
-    if ( function_exists ( 'wp_suspend_cache_addition' ) ) {
-        wp_suspend_cache_addition(true);
-    }
-
-	$siteurl = get_option('siteurl');
+    // Don't cache feed under WP Super-Cache
+    define( 'DONOTCACHEPAGE',TRUE );
 
 	$selected_category = '';
 	$selected_product = '';
 
-	$args['post_type'] = 'wpsc-product';
-	$args['numberposts'] = $chunk_size;
-	$args['offset'] = 0;
+	$args = array(
+			'post_type'     => 'wpsc-product',
+			'numberposts'   => $chunk_size,
+			'offset'        => 0,
+			'cache_results' => false,
+		);
 
-	$self = get_option('siteurl')."/index.php?rss=true&amp;action=product_list$selected_category$selected_product";
+	$args = apply_filters( 'wpsc_productfeed_query_args', $args );
+	
+	$self = site_url( "/index.php?rss=true&amp;action=product_list$selected_category$selected_product" );
 
 	header("Content-Type: application/xml; charset=UTF-8");
 	header('Content-Disposition: inline; filename="E-Commerce_Product_List.rss"');
@@ -50,14 +53,14 @@ function wpsc_generate_product_feed() {
 	echo "<?xml version='1.0' encoding='UTF-8' ?>\n\r";
 	echo "<rss version='2.0' xmlns:atom='http://www.w3.org/2005/Atom'";
 
-	$google_checkout_note = FALSE;
+	$google_checkout_note = false;
 
 	if ($_GET['xmlformat'] == 'google') {
 		echo ' xmlns:g="http://base.google.com/ns/1.0"';
 		// Is Google Checkout available as a payment gateway
         	$selected_gateways = get_option('custom_gateway_options');
 		if (in_array('google',$selected_gateways)) {
-			$google_checkout_note = TRUE;
+			$google_checkout_note = true;
 		}
 	} else {
 		echo ' xmlns:product="http://www.buy.com/rss/module/productV2/"';
@@ -71,10 +74,10 @@ function wpsc_generate_product_feed() {
 	echo "    <generator>WP e-Commerce Plugin</generator>\n\r";
 	echo "    <atom:link href='$self' rel='self' type='application/rss+xml' />\n\r";
 
-	$products = get_posts ($args); 
+	$products = get_posts( $args );
 
 	while ( count ( $products ) ) {
-		
+
 		foreach ($products as $post) {
 
 			setup_postdata($post);
@@ -158,7 +161,7 @@ function wpsc_generate_product_feed() {
 							echo "</".$element_name.">\n\r";
 
 						}
-	 
+
 						if ($element_name == 'g:shipping_weight')
 							$done_weight = TRUE;
 

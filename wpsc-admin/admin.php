@@ -197,7 +197,7 @@ function wpsc_admin_pages() {
 
 	// Help tabs
 	add_action( 'load-' . $edit_options_page , 'wpsc_add_help_tabs' );
-	add_action( 'load-' . $purchase_logs_page, 'wpsc_add_help_tabs' );
+	add_action( 'load-' . $purchase_log_page , 'wpsc_add_help_tabs' );
 	add_action( 'load-' . $edit_coupons_page , 'wpsc_add_help_tabs' );
 	add_action( 'load-edit.php'              , 'wpsc_add_help_tabs' );
 	add_action( 'load-post.php'              , 'wpsc_add_help_tabs' );
@@ -387,7 +387,7 @@ function wpsc_admin_include_css_and_js_refac( $pagehook ) {
 	if ( is_ssl ( ) )
 		$siteurl = str_replace( "http://", "https://", $siteurl );
 
-	if ( version_compare( '3.3', get_bloginfo( 'version' ), '<' ) )
+	if ( version_compare( get_bloginfo( 'version' ), '3.3', '<' ) )
 		wp_admin_css( 'dashboard' );
 
 	if($current_screen->id == 'dashboard_page_wpsc-sales-logs'){

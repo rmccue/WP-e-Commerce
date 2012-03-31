@@ -354,6 +354,7 @@ function wpsc_register_post_types() {
 	register_post_type( 'wpsc-product', array(
 		'capability_type' => 'wpsc-product',
 		'map_meta_cap' => true,
+		'supports' => array( 'title', 'editor', 'thumbnail' ),
 		'hierarchical' => true,
 		'exclude_from_search' => false,
 		'public' => true,
@@ -562,30 +563,79 @@ function wpsc_serialize_shopping_cart() {
 }
 add_action( 'shutdown', 'wpsc_serialize_shopping_cart' );
 
-add_filter( 'query_string', 'wpsc_filter_query_string' );
+add_filter( 'request', 'wpsc_filter_query_request' );
 
 /**
- * Fixes for some inconsistencies about $wp_query when viewing WPEC pages
+ * Fixes for some inconsistencies about $wp_query when viewing WPEC pages.
+ *
+ * Causes the following URLs to work (with pagination enabled):
+ *
+ * /products-page/ (product listing)
+ * /products-page/car-audio/ (existing product category)
+ * /products-page/car-audio/page/2/ (existing product category, page 2)
+ * /products-page/page/2/  (product listing, page 2)
+ * /products-page/checkout/  (existing built-in sub page)
+ * /products-page/anotherpage/  (another sub page that may exist)
  *
  * @param string $q Query String
  */
-function wpsc_filter_query_string( $q ) {
+function wpsc_filter_query_request( $args ) {
 	global $wpsc_page_titles;
-	parse_str( $q, $args );
-
-	// Make sure no 404 error is thrown for products-page's sub pages
-	if ( ! empty( $args['wpsc_product_category'] ) && in_array( $args['wpsc_product_category'], $wpsc_page_titles ) ) {
-		$q = "pagename={$wpsc_page_titles['products']}/{$args['wpsc_product_category']}";
+	if ( is_admin() )
+		return $args;
+    
+	// Make sure no 404 error is thrown for any sub pages of products-page
+	if ( ! empty( $args['wpsc_product_category'] ) && 'page' != $args['wpsc_product_category'] && ! term_exists($args['wpsc_product_category'], 'wpsc_product_category') ) {
+		// Probably requesting a page that is a sub page of products page
+		$pagename = "{$wpsc_page_titles['products']}/{$args['wpsc_product_category']}";
+		if ( isset($args['name']) ) {
+			$pagename .= "/{$args['name']}";
+		}
+		$args = array();
+		$args['pagename'] = $pagename;
 	}
 
 	// When product page is set to display all products or a category, and pagination is enabled, $wp_query is messed up
 	// and is_home() is true. This fixes that.
-	if ( ! is_admin() && isset( $args['post_type'] ) && $args['post_type'] == 'wpsc-product' && ! empty( $args['paged'] ) && empty( $args['wpsc_product_category'] ) ) {
+	if ( isset( $args['post_type'] ) && 'wpsc-product' == $args['post_type'] && ! empty( $args['wpsc-product'] ) && 'page' == $args['wpsc_product_category'] ) {
 		$default_category = get_option( 'wpsc_default_category' );
-		if ( $default_category == 'all' || $default_category != 'list' )
-			$q = "pagename={$wpsc_page_titles['products']}&page={$args['paged']}";
+		if ( $default_category == 'all' || $default_category != 'list' ) {
+			$page = $args['wpsc-product'];
+			$args = array();
+			$args['pagename'] = "{$wpsc_page_titles['products']}";
+			$args['page'] = $page;
+		}
 	}
-	return $q;
+	return $args;
+}
+
+function _wpsc_menu_exists( $args ) {
+	$args = (object) $args;
+	// Get the nav menu based on the requested menu
+	$menu = wp_get_nav_menu_object( $args->menu );
+
+	// Get the nav menu based on the theme_location
+	if ( ! $menu && $args->theme_location && ( $locations = get_nav_menu_locations() ) && isset( $locations[ $args->theme_location ] ) )
+		$menu = wp_get_nav_menu_object( $locations[ $args->theme_location ] );
+
+	// get the first menu that has items if we still can't find a menu
+	if ( ! $menu && !$args->theme_location ) {
+		$menus = wp_get_nav_menus();
+		foreach ( $menus as $menu_maybe ) {
+			if ( $menu_items = wp_get_nav_menu_items($menu_maybe->term_id) ) {
+				$menu = $menu_maybe;
+				break;
+			}
+		}
+	}
+
+	return (bool) $menu;
+}
+
+function _wpsc_switch_the_query( $stuff = '' ) {
+	global $wp_query, $wpsc_query;
+	list( $wp_query, $wpsc_query ) = array( $wpsc_query, $wp_query );
+	return $stuff;
 }
 
 /**
@@ -602,17 +652,18 @@ function wpsc_filter_query_string( $q ) {
  * @param mixed $stuff
  * @return mixed
  */
-function wpsc_switch_the_query( $stuff ) {
+function wpsc_switch_the_query( $args ) {
 	global $wp_query, $wpsc_query;
 	$qv = $wpsc_query->query_vars;
-	if ( ! empty( $qv['wpsc_product_category'] ) && ! empty( $qv['taxonomy'] ) && ! empty( $qv['term'] ) && ! is_single() )
-		list( $wp_query, $wpsc_query ) = array( $wpsc_query, $wp_query );
-	return $stuff;
+	if ( ! empty( $qv['wpsc_product_category'] ) && ! empty( $qv['taxonomy'] ) && ! empty( $qv['term'] ) && ! is_single() && _wpsc_menu_exists( $args ) ) {
+		_wpsc_switch_the_query();
+		add_filter( 'wp_nav_menu', '_wpsc_switch_the_query', 99 );
+	}
+	return $args;
 }
 
 // switch $wp_query and $wpsc_query at the beginning and the end of wp_nav_menu()
-add_filter( 'wp_nav_menu_args', 'wpsc_switch_the_query' );
-add_filter( 'wp_nav_menu', 'wpsc_switch_the_query' );
+add_filter( 'wp_nav_menu_args', 'wpsc_switch_the_query', 99 );
 
 /**
  * wpsc_start_the_query
@@ -662,6 +713,7 @@ function wpsc_start_the_query() {
 				$wpsc_query_vars['nopaging'] = false;
 
 				$wpsc_query_vars['posts_per_page'] = get_option('wpsc_products_per_page');
+
 				$wpsc_query_vars['paged'] = get_query_var('paged');
 				if(isset($wpsc_query_vars['paged']) && empty($wpsc_query_vars['paged'])){
 					$wpsc_query_vars['paged'] = get_query_var('page');
@@ -669,32 +721,9 @@ function wpsc_start_the_query() {
 				}
 
 			}
-			$orderby = get_option( 'wpsc_sort_by' );
-			if( isset( $_GET['product_order'] ) )
-				$orderby = 'title';
 
-			switch ( $orderby ) {
-
-				case "dragndrop":
-					$wpsc_query_vars["orderby"] = 'menu_order';
-					break;
-
-				case "name":
-					$wpsc_query_vars["orderby"] = 'title';
-					break;
-
-				//This only works in WP 3.0.
-				case "price":
-					add_filter( 'posts_join', 'wpsc_add_meta_table' );
-					add_filter( 'posts_where', 'wpsc_add_meta_table_where' );
-					$wpsc_query_vars["meta_key"] = '_wpsc_price';
-					$wpsc_query_vars["orderby"] = 'meta_value_num';
-					break;
-
-				case "id":
-					$wpsc_query_vars["orderby"] = 'ID';
-					break;
-			}
+			$orderby = ( isset( $_GET['product_order'] ) ) ? 'title' : null;
+			$wpsc_query_vars = array_merge( $wpsc_query_vars, wpsc_product_sort_order_query_vars($orderby) );
 
 			add_filter( 'pre_get_posts', 'wpsc_generate_product_query', 11 );
 
@@ -711,7 +740,6 @@ function wpsc_start_the_query() {
 						$wpsc_query_vars['paged'] = get_query_var('page');
 				}
 				$wpsc_query = new WP_Query( $wpsc_query_vars );
-
 
 			}
 		}
@@ -736,6 +764,50 @@ function wpsc_start_the_query() {
 		$_SESSION['wpsc_has_been_to_checkout'] = true;
 }
 add_action( 'template_redirect', 'wpsc_start_the_query', 8 );
+
+
+/**
+ * Obtain the necessary product sort order query variables based on the specified product sort order.
+ * If no sort order is specified, the sort order configured in Dashboard -> Settings -> Store -> Presentation -> 'Sort Product By' is used.
+ *
+ * @param string $orderby optional product sort order
+ * @return array Array of query variables
+ */
+function wpsc_product_sort_order_query_vars( $orderby = null ) {
+	if ( is_null($orderby) )
+		$orderby = get_option( 'wpsc_sort_by' );
+
+	$query_vars = array();
+
+	switch ( $orderby ) {
+
+		case "dragndrop":
+			$query_vars["orderby"] = 'menu_order';
+			break;
+
+		case "name":
+			$query_vars["orderby"] = 'title';
+			break;
+
+		//This only works in WP 3.0.
+		case "price":
+			add_filter( 'posts_join', 'wpsc_add_meta_table' );
+			add_filter( 'posts_where', 'wpsc_add_meta_table_where' );
+			$query_vars["meta_key"] = '_wpsc_price';
+			$query_vars["orderby"] = 'meta_value_num';
+			break;
+
+		case "id":
+			$query_vars["orderby"] = 'ID';
+			break;
+		default:
+			// Allow other WordPress 'ordery' values as defined in http://codex.wordpress.org/Class_Reference/WP_Query#Order_.26_Orderby_Parameters
+			$query_vars["orderby"] = $orderby;
+			break;
+	}
+	return $query_vars;
+}
+
 
 /**
  * add meta table where section for ordering by price
@@ -977,13 +1049,16 @@ function wpsc_generate_product_query( $query ) {
 	if(1 == get_option('use_pagination')){
 		$query->query_vars['posts_per_page'] = get_option('wpsc_products_per_page');
 		if( isset( $_GET['items_per_page'] ) ) {
-			if ( is_numeric( $_GET['items_per_page'] ) )
+			if ( is_numeric( $_GET['items_per_page'] ) ) {
 				$query->query_vars['posts_per_page'] = (int) $_GET['items_per_page'];
-			elseif ( $_GET['items_per_page'] == 'all' )
+			} elseif ( $_GET['items_per_page'] == 'all' ) {
 				$query->query_vars['posts_per_page'] = -1;
+				$query->query_vars['nopaging'] = 1;
+			}
 		}
 	} else {
-		$query->query_vars['posts_per_page'] = '-1';
+		$query->query_vars['posts_per_page'] = -1;
+		$query->query_vars['nopaging'] = 1;
 	}
 	if ( $query->is_tax == true )
 		new wpsc_products_by_category( $query );
