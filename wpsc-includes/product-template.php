@@ -113,12 +113,12 @@ function wpsc_pagination($totalpages = '', $per_page = '', $current_page = '', $
 
 		$separator = '=';
 	}else{
-		// This will need changing when we get product categories sorted
-		if(isset($wp_query->query_vars['wpsc_product_category']))
-			$page_link = trailingslashit(get_option('product_list_url')).$wp_query->query_vars['wpsc_product_category'].'/';
-		else
-			$page_link = trailingslashit(get_option('product_list_url'));
-
+		if ( isset( $wp_query->query_vars['wpsc_product_category'] ) ) {
+			$category_id = get_term_by( 'slug', $wp_query->query_vars['wpsc_product_category'], 'wpsc_product_category' );
+			$page_link = trailingslashit( get_term_link( $category_id, 'wpsc_product_category' ) );
+		} else {
+			$page_link = trailingslashit( get_option( 'product_list_url' ) );
+		}
 		$separator = 'page/';
 	}
 
@@ -1573,8 +1573,9 @@ function wpsc_currency_sign() {
 	_deprecated_function( __FUNCTION__, '3.8', 'the updated ' . __FUNCTION__ . '' );
 	global $wpdb;
 	$currency_sign_location = get_option( 'currency_sign_location' );
-	$currency_type = esc_sql( get_option( 'currency_type' ) );
-	$currency_symbol = $wpdb->get_var( "SELECT `symbol_html` FROM `" . WPSC_TABLE_CURRENCY_LIST . "` WHERE `id`='" . $currency_type . "' LIMIT 1" );
+	$currency_type = get_option( 'currency_type' );
+	$currency_symbol = $wpdb->get_var( $wpdb->prepare( "SELECT `symbol_html` FROM `" . WPSC_TABLE_CURRENCY_LIST . "` WHERE `id` = %d LIMIT 1", $currency_type ) );
+	
 	return $currency_symbol;
 }
 

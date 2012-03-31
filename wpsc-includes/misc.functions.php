@@ -692,7 +692,7 @@ function wpsc_check_memory_limit() {
 }
 
 /* Thanks to: http://www.if-not-true-then-false.com/2009/format-bytes-with-php-b-kb-mb-gb-tb-pb-eb-zb-yb-converter */
-function byteFormat($bytes, $unit = "", $decimals = 2) {
+function wpsc_convert_byte($bytes, $unit = "", $decimals = 2) {
 	$units = array('B' => 0, 'KB' => 1, 'MB' => 2, 'GB' => 3, 'TB' => 4, 
 			'PB' => 5, 'EB' => 6, 'ZB' => 7, 'YB' => 8);
 	$value = 0;
@@ -717,6 +717,36 @@ function byteFormat($bytes, $unit = "", $decimals = 2) {
 	// Format output
 	return sprintf('%.' . $decimals . 'f '.$unit, $value);
   }
+  
+/**
+ * Check whether an integer is odd
+ * @return bool - true if is odd, false otherwise
+ */
+function wpsc_is_odd( $int ) {
 
+	$int = absint( $int );
+	return( $int & 1 );
+} 
+ 
+/**
+ * Retrieves extension of file.
+ * @return string - extension of the passed filename
+ */
+function wpsc_get_extension( $str ) {
+
+	$parts = explode( '.', $str );
+	return end( $parts );
+
+}
+
+/**
+ * Destroys checkout field values on logout.
+ */
+ 
+function wpsc_kill_user_session() {
+	unset( $_SESSION['wpsc_checkout_saved_values'] );
+}
+
+add_action( 'wp_logout', 'wpsc_kill_user_session' );
 
 ?>

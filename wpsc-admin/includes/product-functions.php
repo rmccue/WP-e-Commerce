@@ -7,10 +7,8 @@
  */
 
 function wpsc_get_max_upload_size(){
-// Get PHP Max Upload Size
-	if( ini_get( 'upload_max_filesize' ) ) $upload_max = ini_get( 'upload_max_filesize' );
-	else $upload_max = __( 'N/A', 'wpsc' );
-	return $upload_max;
+
+	return wp_convert_bytes_to_hr( wp_max_upload_size() );
 }
 
 
@@ -793,7 +791,7 @@ function wpsc_update_alt_product_currency($product_id, $newCurrency, $newPrice){
 	global $wpdb;
 	
 	$old_curr = get_product_meta($product_id, 'currency',true);
-	$sql = $wpdb->prepare( "SELECT `isocode` FROM `".WPSC_TABLE_CURRENCY_LIST."` WHERE `id`= %s", $newCurrency );
+	$sql = $wpdb->prepare( "SELECT `isocode` FROM `".WPSC_TABLE_CURRENCY_LIST."` WHERE `id`= %d", $newCurrency );
 	$isocode = $wpdb->get_var($sql);
 
 	$newCurrency = 'currency';

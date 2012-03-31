@@ -39,11 +39,11 @@ if ( !get_option( 'wpsc_checkout_form_sets' ) ) {
  */
 function wpsc_query_vars_product_list( $vars ){
 
-	if( 'wpsc-product' != $vars['post_type'] || in_array( $vars['orderby'], array( 'meta_value_num', 'meta_value' ) ) ) 
+	if( 'wpsc-product' != $vars['post_type'] || in_array( $vars['orderby'], array( 'meta_value_num', 'meta_value' ) ) )
 	    return $vars;
 
 	$vars['posts_per_archive_page'] = 0;
-	
+
 	if( is_admin() && isset( $vars['orderby'] ) ) {
 		$vars['orderby'] = 'date';
 		$vars['order'] = 'desc';
@@ -51,7 +51,7 @@ function wpsc_query_vars_product_list( $vars ){
 		$posts_per_page = (int)get_user_option( 'edit_wpsc_product_per_page' );
 		$vars['posts_per_page'] = ( $posts_per_page ) ? $posts_per_page : 20;
 	}
-	
+
 	if( 'dragndrop' == get_option( 'wpsc_sort_by' ) ){
 		$vars['orderby'] = 'menu_order title';
 		$vars['order'] = 'desc';
@@ -161,17 +161,6 @@ function wpsc_admin_pages() {
 	if ( ( defined( 'WPSC_ADD_DEBUG_PAGE' ) && ( WPSC_ADD_DEBUG_PAGE == true ) ) || ( isset( $_SESSION['wpsc_activate_debug_page'] ) && ( true == $_SESSION['wpsc_activate_debug_page'] ) ) )
 		$page_hooks[] = add_options_page( __( 'Store Debug', 'wpsc' ), __( 'Store Debug', 'wpsc' ), 'administrator', 'wpsc-debug', 'wpsc_debug_page' );
 
-
-	$header = '<p><strong>' . __( 'For More Information', 'wpsc' ) . '</strong></p>';
-
-	add_contextual_help( $edit_options_page,          $header . __( "<a target='_blank' href='http://getshopped.org/resources/docs/store-settings/general/'>General Settings</a><br /> <a target='_blank' href='http://getshopped.org/resources/docs/store-settings/checkout/'>Checkout Options</a> <br />", 'wpsc' ) );
-	add_contextual_help( 'toplevel_page_wpsc-sales-logs',        $header . __( "<a target='_blank' href='http://getshopped.org/resources/docs/building-your-store/sales/'>About the Sales Page</a>", 'wpsc' ) );
-	add_contextual_help( 'toplevel_page_wpsc-edit-products',     $header . __( "<a target='_blank' href='http://getshopped.org/resources/docs/building-your-store/products'>About the Products Page</a>", 'wpsc' ) );
-	add_contextual_help( 'products_page_wpsc-edit-groups',       $header . __( "<a target='_blank' href='http://getshopped.org/resources/docs/building-your-store/categories/'>About the Categories Page</a>", 'wpsc' ) );
-	add_contextual_help( 'products_page_edit-tags',              $header . __( "<a target='_blank' href='http://getshopped.org/resources/docs/building-your-store/variations/'>About the Variations Page</a>", 'wpsc' ) );
-	add_contextual_help( 'settings_page_wpsc-settings',          $header . __( "<a target='_blank' href='http://getshopped.org/resources/docs/store-settings/general/'>General Settings</a><br /> <a target='_blank' href='http://getshopped.org/resources/docs/store-settings/checkout/'>Checkout Options</a> <br />", 'wpsc' ) );
-	add_contextual_help( 'products_page_wpsc-edit-coupons',          $header .  __( "<a target='_blank' href='http://getshopped.org/resources/docs/building-your-store/marketing'>Marketing Options</a><br />", 'wpsc' ) );
-
 	$page_hooks = apply_filters( 'wpsc_additional_pages', $page_hooks, $products_page );
 
 	do_action( 'wpsc_add_submenu' );
@@ -205,6 +194,114 @@ function wpsc_admin_pages() {
 	}
 
 	add_action( 'load-' . $edit_options_page, 'wpsc_load_settings_page', 1 );
+
+	// Help tabs
+	add_action( 'load-' . $edit_options_page , 'wpsc_add_help_tabs' );
+	add_action( 'load-' . $purchase_log_page , 'wpsc_add_help_tabs' );
+	add_action( 'load-' . $edit_coupons_page , 'wpsc_add_help_tabs' );
+	add_action( 'load-edit.php'              , 'wpsc_add_help_tabs' );
+	add_action( 'load-post.php'              , 'wpsc_add_help_tabs' );
+	add_action( 'load-post-new.php'          , 'wpsc_add_help_tabs' );
+	add_action( 'load-edit-tags.php'         , 'wpsc_add_help_tabs' );
+}
+
+/**
+ * This function adds contextual help to all WPEC screens.
+ * add_contextual_help() is supported as well as $screen->add_help_tab().
+ *
+ * @since 3.8.8
+ */
+function wpsc_add_help_tabs() {
+	$tabs = array(
+		// Store Settings Page
+		'settings_page_wpsc-settings' => array(
+			'title' => _x( 'Store Settings', 'contextual help tab', 'wpsc' ),
+			'links' => array(
+				'category/configuring-your-store/store-settings/'   => _x( 'Store Settings Overview'          , 'contextual help link', 'wpsc' ),
+				'category/configuring-your-store/payment-gateways/' => _x( 'Configuring Your Payment Gateways', 'contextual help link', 'wpsc' ),
+				'category/configuring-your-store/shipping/'         => _x( 'Configuring Your Shipping Modules', 'contextual help link', 'wpsc' ),
+			),
+		),
+
+		// Sales Log Page
+		'dashboard_page_wpsc-purchase-logs' => array(
+			'title' => _x( 'Sales Log', 'contextual help tab', 'wpsc' ),
+			'links' => array(
+				'documentation/sales/' => _x( 'Monitor and Manage Your Sales', 'contextual help link', 'wpsc' ),
+			),
+		),
+
+		// Main Products Listing Admin Page (edit.php?post_type=wpsc-product)
+		'edit-wpsc-product' => array(
+			'title' => _x( 'Product Catalog', 'contextual help tab', 'wpsc' ),
+			'links' => array(
+				'category/managing-your-store/' => _x( 'Managing Your Store', 'contextual help link', 'wpsc' ),
+			),
+		),
+
+		// Add and Edit Product Pages
+		'wpsc-product' => array(
+			'title' => _x( 'Add and Edit Product', 'contextual help tab', 'wpsc' ),
+			'links' => array(
+				'category/managing-your-store/' => _x( 'Managing Your Store', 'contextual help link', 'wpsc' ),
+				'resource/video-adding-products/' => _x( 'Video: Adding Products', 'contextual help link', 'wpsc' ),
+			),
+		),
+
+		// Product Tags Page
+		'edit-product_tag' => array(
+			'title' => _x( 'Product Tags', 'contextual help tab', 'wpsc' ),
+			'links' =>array(
+				'resource/video-product-tags/' => _x( 'Video: Product Tags', 'contextual help link', 'wpsc' ),
+			),
+		),
+
+		// Product Category Page
+		'edit-wpsc_product_category' => array(
+			'title' => _x( 'Product Categories', 'contextual help tab', 'wpsc' ),
+			'links' => array(
+				'resource/video-creating-product-categories/' => _x( 'Video: Creating Product Categories', 'contextual help link', 'wpsc' ),
+			),
+		),
+
+		// Product Variations Page
+		'edit-wpsc-variation' => array(
+			'title' => _x( 'Product Variations', 'contextual help tab', 'wpsc' ),
+			'links' => array(
+				'category/managing-your-store/' => _x( 'Managing Your Store', 'contextual help link', 'wpsc' ),
+			),
+		),
+
+		// Coupon Page
+		'wpsc-product_page_wpsc-edit-coupons' => array(
+			'title' => _x( 'Coupons', 'contextual help tab', 'wpsc' ),
+			'links' => array(
+				'resource/video-creating-coupons/' => _x( 'Video: Creating Coupons', 'contextual help link', 'wpsc' ),
+			),
+		),
+	);
+
+	$screen = get_current_screen();
+	if ( array_key_exists( $screen->id, $tabs ) ) {
+		$tab = $tabs[$screen->id];
+		$content = '<p><strong>' . __( 'Fore More Information', 'wpsc' ) . '</strong></p>';
+		$links = array();
+		foreach( $tab['links'] as $link => $link_title ) {
+			$link = 'http://docs.getshopped.org/' . $link;
+			$links[] = '<a target="_blank" href="' . esc_url( $link ) . '">' . esc_html( $link_title ) . '</a>';
+		}
+		$content .= '<p>' . implode( '<br />', $links ) . '</p>';
+
+		if ( version_compare( get_bloginfo( 'version' ), '3.3', '<' ) ) {
+			add_contextual_help( $screen->id, $content );
+		} else {
+			$screen->add_help_tab( array(
+				'id'      => $screen->id . '_help',
+				'title'   => $tab['title'],
+				'content' => $content,
+			) );
+		}
+	}
 }
 
 function wpsc_load_settings_page() {
@@ -290,7 +387,7 @@ function wpsc_admin_include_css_and_js_refac( $pagehook ) {
 	if ( is_ssl ( ) )
 		$siteurl = str_replace( "http://", "https://", $siteurl );
 
-	if ( version_compare( '3.3', get_bloginfo( 'version' ), '<' ) )
+	if ( version_compare( get_bloginfo( 'version' ), '3.3', '<' ) )
 		wp_admin_css( 'dashboard' );
 
 	if($current_screen->id == 'dashboard_page_wpsc-sales-logs'){
@@ -816,15 +913,19 @@ function wpsc_ajax_ie_save() {
 		die();
 	}
 
+	$id = absint( $_POST['id'] );
+	$post = get_post( $_POST['id'] );
+	$parent = get_post( $post->post_parent );
+	$terms = wp_get_object_terms( $id, 'wpsc-variation', array( 'fields' => 'names' ) );
+
 	$product = array(
 		'ID' => $_POST['id'],
-		'post_title' => $_POST['title']
+		'post_title' => $parent->post_title . ' (' . implode( ', ', $terms ) . ')',
 	);
 
 	$id = wp_update_post( $product );
 	if ( $id > 0 ) {
 		//need parent meta to know which weight unit we are using
-		$post = get_post( $id );
 		$parent_meta = get_product_meta($post->post_parent, 'product_metadata', true );
 		$product_meta = get_product_meta( $product['ID'], 'product_metadata', true );
 		if ( is_numeric( $_POST['weight'] ) || empty( $_POST['weight'] ) ){
@@ -841,7 +942,6 @@ function wpsc_ajax_ie_save() {
 		else
 			update_product_meta( $product['ID'], 'stock', absint( $_POST['stock'] ) );
 
-		$post = get_post( $id );
 		$meta = get_product_meta( $id, 'product_metadata', true );
 		$price = get_product_meta( $id, 'price', true );
 		$special_price = get_product_meta( $id, 'special_price', true );

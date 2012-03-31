@@ -453,7 +453,8 @@ function wpsc_product_variation_forms() {
 	$image_data                   = (array)get_posts( $args );
 	$parent_product_data['image'] = array_shift( $image_data );
 
-	$wp_query = new WP_Query( $query );
+	query_posts( $query );
+
 	if ( !isset( $parent_product_data ) )
 		$parent_product_data = null;
 ?>
@@ -475,7 +476,7 @@ function wpsc_product_variation_forms() {
 	wpsc_admin_product_listing( $parent_product_data );
 ?>
 <?php
-	if ( count( $wp_query->posts ) < 1 ) :
+	if ( ! have_posts() ) :
 ?>
 					<tr>
 						<td colspan="8">
@@ -490,6 +491,11 @@ function wpsc_product_variation_forms() {
 
         <?php
 	endif;
+	wp_reset_query();
+
+	// reset the global $id variable. This is to prevent incompatibility with Genesis framework,
+	// which (wrongly) relies on this global.
+	$GLOBALS['id'] = null;
 }
 function wpsc_product_shipping_forms() {
 	global $post, $wpdb, $variations_processor, $wpsc_product_defaults;
@@ -818,10 +824,10 @@ function wpsc_product_download_forms() {
 	$upload_max = wpsc_get_max_upload_size();
 ?>
 	<?php echo wpsc_select_product_file( $post->ID ); ?>
+		<h4><a href="admin.php?wpsc_admin_action=product_files_existing&amp;product_id=<?php echo $post->ID; ?>" class="thickbox" title="<?php printf( __( 'Select all downloadable files for %s', 'wpsc' ), $post->post_title ); ?>"><?php _e( 'Select from existing files', 'wpsc' ); ?></a></h4>
 	<a name="wpsc_downloads"></a>
 	<h4><?php _e( 'Upload New File', 'wpsc' ); ?>:</h4>
-	<input type='file' name='file' value='' /><br /><?php _e( 'Max Upload Size', 'wpsc' ); ?>:<span><?php echo $upload_max; ?></span><br /><br />
-	<h4><a href="admin.php?wpsc_admin_action=product_files_existing&product_id=<?php echo $post->ID; ?>" class="thickbox" title="<?php printf( __( 'Select all downloadable files for %s', 'wpsc' ), $post->post_title ); ?>"><?php _e( 'Select from existing files', 'wpsc' ); ?></a></h4>
+	<input type='file' name='file' value='' /><br /><?php _e( 'Max Upload Size ', 'wpsc' ); ?>:<span><?php echo $upload_max; ?></span> <span> - <?php _e( 'Choose your file, then update this product to save the download.', 'wpsc' ); ?></span><br /><br />
         <?php
 	if ( function_exists( "make_mp3_preview" ) || function_exists( "wpsc_media_player" ) ) {
 ?>

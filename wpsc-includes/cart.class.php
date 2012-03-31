@@ -449,11 +449,11 @@ function wpsc_shipping_quote_name() {
 */
 function wpsc_shipping_quote_value($numeric = false) {
    global $wpsc_cart;
-   if($numeric == true) {
-      return $wpsc_cart->shipping_quote['value'];
-   } else {
-      return wpsc_currency_display($wpsc_cart->shipping_quote['value']);
-   }
+
+   $value = apply_filters( 'wpsc_shipping_quote_value', $wpsc_cart->shipping_quote['value'] );
+
+   return ( $numeric ) ? $value : wpsc_currency_display( $value );
+
 }
 
 /**
@@ -828,6 +828,9 @@ class wpsc_cart {
   function set_item($product_id, $parameters, $updater = false) {
     // default action is adding
 
+    $add_item = false;
+    $edit_item = false;
+
     if(($parameters['quantity'] > 0) && ($this->check_remaining_quantity($product_id, $parameters['variation_values'], $parameters['quantity']) == true)) {
          $new_cart_item = new wpsc_cart_item($product_id,$parameters, $this);
          do_action_ref_array( 'wpsc_set_cart_item' , array( $product_id , $parameters , &$this ) );
@@ -1120,19 +1123,17 @@ class wpsc_cart {
     * @access public
     * @return float returns the price as a floating point value
    */
-   function calculate_total_tax()
-   {
-      //uses new wpec_taxes functionality
-         $wpec_taxes_controller = new wpec_taxes_controller();
-         $taxes_total = $wpec_taxes_controller->wpec_taxes_calculate_total();
-         $this->total_tax = $taxes_total['total'];
-         if(isset($taxes_total['rate']))
-         {
-            $this->tax_percentage = $taxes_total['rate'];
-         }// if
+   function calculate_total_tax() {
 
-      return $this->total_tax;
-   }// calculate_total_tax
+      $wpec_taxes_controller = new wpec_taxes_controller();
+      $taxes_total = $wpec_taxes_controller->wpec_taxes_calculate_total();
+      $this->total_tax = $taxes_total['total'];
+
+      if( isset( $taxes_total['rate'] ) )
+         $this->tax_percentage = $taxes_total['rate'];
+
+      return apply_filters( 'wpsc_calculate_total_tax', $this->total_tax );
+   }
 
 
 
@@ -1475,10 +1476,10 @@ class wpsc_cart {
    /**
     * Applying Coupons
     */
-   function apply_coupons($couponAmount='', $coupons=''){
+   function apply_coupons( $coupons_amount = '', $coupon_name = '' ){
       $this->clear_cache();
-      $this->coupons_name = $coupons;
-      $this->coupons_amount = $couponAmount;
+      $this->coupons_name = $coupon_name;
+      $this->coupons_amount = apply_filters( 'wpsc_coupons_amount', $coupons_amount, $coupon_name );
       $this->calculate_total_price();
          if ( $this->total_price < 0 ) {
             $this->coupons_amount += $this->total_price;
